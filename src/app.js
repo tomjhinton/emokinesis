@@ -2,11 +2,11 @@ import '@babel/polyfill'
 import '@tensorflow/tfjs-core'
 import '@tensorflow/tfjs-converter'
 import './style.scss'
-
+import '@babel/polyfill'
 const THREE = require('three')
 import * as bodyPix from '@tensorflow-models/body-pix';
 console.log(bodyPix)
-
+import * as faceapi from 'face-api.js'
 
 const webcamElement = document.getElementById('webcam')
 const canvas = document.getElementById('canvas')
@@ -34,14 +34,6 @@ function setupWebcam() {
 async function loadAndPredict() {
   const net = await bodyPix.load(/** optional arguments, see below **/);
 
-  /**
-   * One of (see documentation below):
-   *   - net.segmentPerson
-   *   - net.segmentPersonParts
-   *   - net.segmentMultiPerson
-   *   - net.segmentMultiPersonParts
-   * See documentation below for details on each method.
-    */
     async function draw(){
       window.requestAnimFrame = (function(){
     return  window.requestAnimationFrame       ||
@@ -104,7 +96,29 @@ draw()
 
 }
 loadAndPredict()
-setupWebcam()
+Promise.all([
+  faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+  faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+  faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+  faceapi.nets.faceExpressionNet.loadFromUri('/models')
+]).then(setupWebcam())
+
+let sad, surprised, happy
+
+webcamElement.addEventListener('play', () => {
+  const canvas = document.getElementById('canvas')
+  const displaySize = { width: webcamElement.width, height: webcamElement.height }
+  faceapi.matchDimensions(canvas, displaySize)
+  setInterval(async () => {
+    const detections = await faceapi.detectAllFaces(webcamElement, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
+    const resizedDetections = faceapi.resizeResults(detections, displaySize)
+
+    happy = resizedDetections[0].expressions.happy
+    surprised = resizedDetections[0].expressions.surprised
+
+    //console.log(faceapi)
+  }, 100)
+})
 
 const scene = new THREE.Scene()
 
@@ -185,6 +199,9 @@ var update = function() {
   line2.rotation.y+=0.01
   cube.rotation.x+=0.1
   cube.position.x+=0.1
+  if(happy>0.9){
+    line.position.y++
+  }
 }
 
 function animate() {
