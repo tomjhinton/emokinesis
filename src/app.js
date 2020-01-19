@@ -141,7 +141,7 @@ var sampler = new Tone.Sampler({
 }, function(){
   //sampler will repitch the closest sample
   //sampler.triggerAttack("D3")
-  console.log('loaded')
+  //console.log('loaded')
   playing = true
 }).toMaster()
 
@@ -152,7 +152,7 @@ light.position.set( 40, 25, 10 )
 light.castShadow = true
 scene.add(light)
 
-console.log(scene.scene)
+//console.log(scene.scene)
 
 const renderer = new THREE.WebGLRenderer()
 renderer.setSize( window.innerWidth, window.innerHeight )
@@ -267,8 +267,8 @@ world = new CANNON.World()
       ballBody.angularVelocity.y = 3
       //console.log(ballBody)
       ballBody.addEventListener('collide',function(e){
-        console.log(e)
-        console.log(score)
+        // console.log(e)
+        // console.log(score)
         // console.log(e.body.position.y)
         if(playing){
 
