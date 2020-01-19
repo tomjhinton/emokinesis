@@ -7,6 +7,7 @@ const THREE = require('three')
 import * as bodyPix from '@tensorflow-models/body-pix';
 console.log(bodyPix)
 import * as faceapi from 'face-api.js'
+const CANNON = require('cannon')
 
 const webcamElement = document.getElementById('webcam')
 const canvas = document.getElementById('canvas')
@@ -51,11 +52,11 @@ async function loadAndPredict() {
   const outputStride = 16;
   const segmentationThreshold = 0.5;
   let contextPerson = canvasPerson.getContext('2d');
-  let currentStream;
-  let deviceIds = [];
-  let selectedDevice;
-  let cameraFrame;
-  let currentBGIndex = 0;
+  let currentStream
+  let deviceIds = []
+  let selectedDevice
+  let cameraFrame
+  let currentBGIndex = 0
 
   function detectBody(){
     net.segmentPerson(camera, outputStride, segmentationThreshold)
@@ -65,7 +66,7 @@ async function loadAndPredict() {
     .then(personSegmentation => {
         drawBody(personSegmentation);
 
-    });
+    })
     cameraFrame = window.requestAnimFrame(detectBody);
 }
 
@@ -89,10 +90,6 @@ draw()
 
 
 
-// setInterval(function () {
-//   draw()
-//
-// }, 10)
 
 }
 loadAndPredict()
@@ -112,9 +109,10 @@ webcamElement.addEventListener('play', () => {
   setInterval(async () => {
     const detections = await faceapi.detectAllFaces(webcamElement, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
     const resizedDetections = faceapi.resizeResults(detections, displaySize)
-
+if(resizedDetections[0] !== undefined){
     happy = resizedDetections[0].expressions.happy
     surprised = resizedDetections[0].expressions.surprised
+  }
 
     //console.log(faceapi)
   }, 100)
@@ -138,9 +136,9 @@ document.body.appendChild( renderer.domElement )
 const camera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight, 0.1, 3000 )
 camera.position.z = 30
 
-const material = new THREE.MeshPhongMaterial( { color: 0x000FF0, specular: 0xf22fff , shininess: 100, side: THREE.DoubleSide } )
+let material = new THREE.MeshPhongMaterial( { color: 0x000FF0, specular: 0xf22fff , shininess: 100, side: THREE.DoubleSide } )
 
-const material2 = new THREE.MeshPhongMaterial( { color: 0xffff00, specular: 0xf22fff , shininess: 100, side: THREE.DoubleSide } )
+
 
 const geometry = new THREE.BoxGeometry( 3, 3, 3,40,60,40,60 )
 
@@ -189,9 +187,65 @@ line.position.y = - 200
 line2.position.y = + 220
 
 
-
+let world,  playerMaterial, playerContactMaterial, platThreeArr = [], platCanArr = [], timeStep=1/60
 
 scene.add(line, line2)
+
+let groundBody, groundShape ,wallMaterial, platform
+world = new CANNON.World()
+  world.gravity.set(0,-20,0)
+  world.broadphase = new CANNON.NaiveBroadphase()
+  world.solver.iterations = 10
+
+  wallMaterial = new CANNON.Material('wallMaterial')
+  playerMaterial = new CANNON.Material('playerMaterial')
+
+
+  playerContactMaterial = new CANNON.ContactMaterial(playerMaterial,wallMaterial)
+  playerContactMaterial.friction = 0
+  playerContactMaterial.restitution = 1.3
+
+
+  world.addContactMaterial(playerContactMaterial)
+
+function createPlatform(x,y,z){
+    groundShape = new CANNON.Box(new CANNON.Vec3(10,40,1))
+    groundBody = new CANNON.Body({ mass: 0, material: wallMaterial })
+    groundBody.addShape(groundShape)
+    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2)
+    groundBody.position.set(0,0,0)
+    groundBody.position.x = x
+    groundBody.position.y = y
+    groundBody.position.z = z
+
+    world.addBody(groundBody)
+    platCanArr.push(groundBody)
+
+
+    platform = new THREE.BoxGeometry( 20, 80, 2 )
+    material =  new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 0.8,
+      transparent: false } )
+
+    const platMesh = new THREE.Mesh( platform, material )
+
+    platMesh.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2)
+    platMesh.position.x = x
+    platMesh.position.y = y
+    platMesh.position.z = z
+
+    scene.add(platMesh)
+    platThreeArr.push(platMesh)
+  }
+
+
+  createPlatform(0,-20,0)
+
+  for(let i=1;i<25;i ++ ){
+    createPlatform(0,-20,i*-40)
+
+  }
+
+
 
 var update = function() {
 
@@ -200,8 +254,16 @@ var update = function() {
   cube.rotation.x+=0.1
   cube.position.x+=0.1
   if(happy>0.9){
-    line.position.y++
+  
   }
+  for(let i=1;i<platThreeArr.length;i++){
+    if(happy>0.9){
+      platThreeArr[i].rotation.z += 0.01
+
+
+    }
+  }
+  updatePhysics()
 }
 
 function animate() {
@@ -212,7 +274,14 @@ function animate() {
   renderer.render(scene,camera)
   requestAnimationFrame(animate)
 }
-
+function updatePhysics() {
+  // Step the physics world
+  world.step(timeStep)
+  for(var i=0; i<platCanArr.length; i++){
+    platCanArr[i].position.copy(platThreeArr[i].position)
+    platCanArr[i].quaternion.copy(platThreeArr[i].quaternion)
+  }
+}
 
 
 requestAnimationFrame(animate)

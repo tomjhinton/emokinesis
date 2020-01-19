@@ -20,6 +20,7 @@
     "@tensorflow/tfjs-converter": "^1.5.1",
     "@tensorflow/tfjs-core": "^1.5.1",
     "babel-loader": "^8.0.6",
+    "cannon": "^0.6.2",
     "copy-webpack-plugin": "^5.0.4",
     "css-loader": "^3.2.0",
     "face-api.js": "^0.22.0",
