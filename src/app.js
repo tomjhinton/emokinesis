@@ -4,13 +4,15 @@ import '@tensorflow/tfjs-converter'
 import './style.scss'
 import '@babel/polyfill'
 const THREE = require('three')
+import Tone from 'tone'
+
 import * as bodyPix from '@tensorflow-models/body-pix';
-console.log(bodyPix)
 import * as faceapi from 'face-api.js'
 const CANNON = require('cannon')
-
+import './debug.js'
 const webcamElement = document.getElementById('webcam')
 const canvas = document.getElementById('canvas')
+let playing = false
 function setupWebcam() {
   return new Promise((resolve, reject) => {
     const navigatorAny = navigator
@@ -118,6 +120,31 @@ if(resizedDetections[0] !== undefined){
   }, 100)
 })
 
+var freeverb = new Tone.Freeverb().toMaster()
+freeverb.dampening.value = 25
+freeverb.roomSize.value = 0.7
+var pingPong = new Tone.PingPongDelay('4n', 0.2).toMaster()
+var autoWah = new Tone.AutoWah(50, 6, -30).toMaster()
+var synthA = new Tone.DuoSynth().chain(freeverb, pingPong, autoWah).toMaster()
+var synthB = new Tone.AMSynth().chain(freeverb, pingPong, autoWah).toMaster()
+const notes = ['E4','F4','G4','A4','D4','E3','F3','G3','A3','D3']
+
+const notesLow = ['E2','F2','G2','A2','D2','E3','F3','G3','A3','D3']
+const drums = ['C3', 'D3', 'F3', 'E3', 'B3']
+var sampler = new Tone.Sampler({
+  'C3': 'assets/Clap.wav',
+  'D3': 'assets/Kick.wav',
+  'F3': 'assets/Snare.wav',
+  'E3': 'assets/wood.wav',
+  'B3': 'assets/daiko.wav',
+
+}, function(){
+  //sampler will repitch the closest sample
+  //sampler.triggerAttack("D3")
+  console.log('loaded')
+  playing = true
+}).toMaster()
+
 const scene = new THREE.Scene()
 
 const light = new THREE.DirectionalLight( 0xffffff )
@@ -140,11 +167,7 @@ let material = new THREE.MeshPhongMaterial( { color: 0x000FF0, specular: 0xf22ff
 
 
 
-const geometry = new THREE.BoxGeometry( 3, 3, 3,40,60,40,60 )
 
-const cube = new THREE.Mesh(geometry, material)
-
-scene.add(cube)
 
 const geometryG = new THREE.Geometry(),
   geometryG2 = new THREE.Geometry(),
@@ -180,14 +203,17 @@ for (let j = -size; j <= size; j += steps2) {
   geometryG2.vertices.push(new THREE.Vector3(j, -0.04, size2))
 }
 
-const line = new THREE.Line(geometryG, materialG, THREE.LinePieces)
-const line2 = new THREE.Line(geometryG2, materialG2, THREE.LinePieces)
+const line = new THREE.Line(geometryG, materialG, THREE.LineSegments)
+const line2 = new THREE.Line(geometryG2, materialG2, THREE.LineSegments)
 
 line.position.y = - 200
 line2.position.y = + 220
 
 
-let world,  playerMaterial, playerContactMaterial, platThreeArr = [], platCanArr = [], timeStep=1/60
+let score = 0
+let ballMeshes = []
+let balls = []
+let world,  playerMaterial, playerContactMaterial, platThreeArr = [], platCanArr = [], timeStep=1/60, ballBody, ballMesh, ballShape, ballMaterial, wallContactMaterial, mass, radius
 
 scene.add(line, line2)
 
@@ -198,78 +224,119 @@ world = new CANNON.World()
   world.solver.iterations = 10
 
   wallMaterial = new CANNON.Material('wallMaterial')
-  playerMaterial = new CANNON.Material('playerMaterial')
+
+ ballMaterial = new CANNON.Material('ballMaterial')
+  wallContactMaterial = new CANNON.ContactMaterial(ballMaterial, wallMaterial)
+  wallContactMaterial.friction = 0
+  wallContactMaterial.restitution = 2
 
 
-  playerContactMaterial = new CANNON.ContactMaterial(playerMaterial,wallMaterial)
-  playerContactMaterial.friction = 0
-  playerContactMaterial.restitution = 1.3
 
 
-  world.addContactMaterial(playerContactMaterial)
 
-function createPlatform(x,y,z){
-    groundShape = new CANNON.Box(new CANNON.Vec3(10,40,1))
+
+
+    groundShape = new CANNON.Box(new CANNON.Vec3(300,300,2))
     groundBody = new CANNON.Body({ mass: 0, material: wallMaterial })
     groundBody.addShape(groundShape)
     groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2)
     groundBody.position.set(0,0,0)
-    groundBody.position.x = x
-    groundBody.position.y = y
-    groundBody.position.z = z
-
+    groundBody.position.y = -20
     world.addBody(groundBody)
-    platCanArr.push(groundBody)
+
+    function ballCreate(x,y){
+      const materialBall = new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 0.8,
+        transparent: true } )
+
+      const ballGeometry = new THREE.SphereGeometry(1, 32, 32)
+      const ballMesh = new THREE.Mesh( ballGeometry, materialBall )
+      ballMesh.name = 'ball'
+      scene.add(ballMesh)
+      ballMeshes.push(ballMesh)
+
+      mass = 2, radius = 1
 
 
-    platform = new THREE.BoxGeometry( 20, 80, 2 )
-    material =  new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 0.8,
-      transparent: false } )
-
-    const platMesh = new THREE.Mesh( platform, material )
-
-    platMesh.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2)
-    platMesh.position.x = x
-    platMesh.position.y = y
-    platMesh.position.z = z
-
-    scene.add(platMesh)
-    platThreeArr.push(platMesh)
-  }
-
-
-  createPlatform(0,-20,0)
-
-  for(let i=1;i<25;i ++ ){
-    createPlatform(0,-20,i*-40)
-
-  }
+      ballShape = new CANNON.Sphere(radius)
+      ballBody = new CANNON.Body({ mass: 1, material: ballMaterial })
+      ballBody.addShape(ballShape)
+      ballBody.linearDamping = 0
+      world.addBody(ballBody)
+      balls.push(ballBody)
+      ballBody.position.set(x,y,-30)
+      ballBody.angularVelocity.y = 3
+      //console.log(ballBody)
+      ballBody.addEventListener('collide',function(e){
+        console.log(e)
+        console.log(score)
+        // console.log(e.body.position.y)
+        if(playing){
 
 
+
+          if(score > 0 && score <= 2){
+            sampler.triggerAttackRelease(drums[Math.floor(Math.random()*5)], 1)
+            synthA.triggerAttackRelease(notes[Math.floor(Math.random()*9)],1)
+          }
+
+          if(score > 2 && score <= 4){
+            sampler.triggerAttackRelease(drums[Math.floor(Math.random()*5)], 1)
+            synthA.triggerAttackRelease(notesLow[Math.floor(Math.random()*9)],1)
+          }
+
+          if(score > 4 ){
+            sampler.triggerAttackRelease(drums[Math.floor(Math.random()*5)], 1)
+            synthB.triggerAttackRelease(notes[Math.floor(Math.random()*9)],1)
+          }
+
+
+
+    }
+  })
+}
+for(let k=0;k<10;k++){
+
+  ballCreate(Math.floor(Math.random()*15), Math.floor(Math.random()*15))
+}
 
 var update = function() {
 
   line.rotation.y+=0.01
   line2.rotation.y+=0.01
-  cube.rotation.x+=0.1
-  cube.position.x+=0.1
+
   if(happy>0.9){
-  
-  }
-  for(let i=1;i<platThreeArr.length;i++){
-    if(happy>0.9){
-      platThreeArr[i].rotation.z += 0.01
 
-
+    for(var j=0; j<balls.length; j++){
+      if(j%2===0){
+        balls[j].velocity.y+= (1+(j/10))
+      }
     }
-  }
-  updatePhysics()
-}
 
+  }
+
+  if(surprised>0.9){
+
+    for(var l=0; l<balls.length; l++){
+      if(l%2!==0){
+        balls[l].velocity.y+=(1+(l/10))
+      }
+    }
+
+  }
+
+
+
+
+  updatePhysics()
+  if(cannonDebugRenderer){
+    //cannonDebugRenderer.update()
+  }
+}
+const cannonDebugRenderer = new THREE.CannonDebugRenderer( scene, world )
 function animate() {
 
   update()
-
+  score+=0.001
   /* render scene and camera */
   renderer.render(scene,camera)
   requestAnimationFrame(animate)
@@ -277,9 +344,10 @@ function animate() {
 function updatePhysics() {
   // Step the physics world
   world.step(timeStep)
-  for(var i=0; i<platCanArr.length; i++){
-    platCanArr[i].position.copy(platThreeArr[i].position)
-    platCanArr[i].quaternion.copy(platThreeArr[i].quaternion)
+
+  for(var j=0; j<balls.length; j++){
+    ballMeshes[j].position.copy(balls[j].position)
+    ballMeshes[j].quaternion.copy(balls[j].quaternion)
   }
 }
 

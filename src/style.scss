@@ -1,3 +1,13 @@
+@font-face {
+  font-family: "Passio";
+  src: url("assets/Passio-Graphis.otf") format("opentype");
+}
+
+
+*{
+  font-family: 'Passio';
+  font-weight: bold;
+}
 
   #webcam{
     // display: none;
@@ -25,4 +35,15 @@
 }
 canvas{
   position: relative;
+}
+
+.instructions{
+  color: white;
+  position: fixed;
+  z-index: 5;
+  margin-left: 30%;
+  margin-top: 10vh;
+  font-size: 2em;
+
+
 }

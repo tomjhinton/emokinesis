@@ -51,6 +51,10 @@ module.exports = {
     new webpack.ProvidePlugin({ 'window.decomp': 'poly-decomp' }),
     new CopyWebpackPlugin([
       { from: 'src/assets', to: 'assets' }
+    ]),
+    new webpack.ProvidePlugin({ 'window.decomp': 'poly-decomp' }),
+    new CopyWebpackPlugin([
+      { from: 'src/models', to: 'models' }
     ])
   ]
 }
