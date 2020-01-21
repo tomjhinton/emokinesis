@@ -81,7 +81,7 @@ function drawBody(personSegmentation)
     var pixel = imageData.data;
     for (var p = 0; p<pixel.length; p+=4)
     {
-      if (personSegmentation.data[p/4] == 0) {
+      if (personSegmentation && personSegmentation.data[p/4] == 0) {
           pixel[p+3] = 0;
       }
     }
@@ -153,6 +153,8 @@ var sampler = new Tone.Sampler({
   playing = true
 }).toMaster()
 
+const synthArr = ['synthA.triggerAttackRelease(notes[Math.floor(Math.random()*9)],1)','synthA.triggerAttackRelease(notesLow[Math.floor(Math.random()*9)],1)', 'synthB.triggerAttackRelease(notes[Math.floor(Math.random()*9)],1)', 'synthB.triggerAttackRelease(notesLow[Math.floor(Math.random()*9)],1)']
+
 const scene = new THREE.Scene()
 
 const light = new THREE.DirectionalLight( 0xffffff )
@@ -218,10 +220,9 @@ line.position.y = - 200
 line2.position.y = + 220
 
 
-let score = 0
-let ballMeshes = []
-let balls = []
-let world,  playerMaterial, playerContactMaterial, platThreeArr = [], platCanArr = [], timeStep=1/60, ballBody, ballMesh, ballShape, ballMaterial, wallContactMaterial, mass, radius
+const ballMeshes = []
+const balls = []
+let world, timeStep=1/60, ballBody, ballShape, ballMaterial, wallContactMaterial
 
 scene.add(line, line2)
 
@@ -234,10 +235,10 @@ world.solver.iterations = 10
 
 wallMaterial = new CANNON.Material('wallMaterial')
 
- ballMaterial = new CANNON.Material('ballMaterial')
-  wallContactMaterial = new CANNON.ContactMaterial(ballMaterial, wallMaterial)
-  wallContactMaterial.friction = 0
-  wallContactMaterial.restitution = 2
+ballMaterial = new CANNON.Material('ballMaterial')
+wallContactMaterial = new CANNON.ContactMaterial(ballMaterial, wallMaterial)
+wallContactMaterial.friction = 0
+wallContactMaterial.restitution = 2
 
 
 
@@ -245,15 +246,15 @@ wallMaterial = new CANNON.Material('wallMaterial')
 
 
 
-    groundShape = new CANNON.Box(new CANNON.Vec3(300,300,2))
-    groundBody = new CANNON.Body({ mass: 0, material: wallMaterial })
-    groundBody.addShape(groundShape)
-    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2)
-    groundBody.position.set(0,0,0)
-    groundBody.position.y = -20
-    world.addBody(groundBody)
+groundShape = new CANNON.Box(new CANNON.Vec3(300,300,2))
+groundBody = new CANNON.Body({ mass: 0, material: wallMaterial })
+groundBody.addShape(groundShape)
+groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2)
+groundBody.position.set(0,0,0)
+groundBody.position.y = -20
+world.addBody(groundBody)
 
-    function ballCreate(x,y){
+function ballCreate(x,y){
   const materialBall = new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 0.8,
     transparent: true } )
 
@@ -263,41 +264,24 @@ wallMaterial = new CANNON.Material('wallMaterial')
   scene.add(ballMesh)
   ballMeshes.push(ballMesh)
 
-  mass = 2, radius = 1
-
-
-      ballShape = new CANNON.Sphere(radius)
-      ballBody = new CANNON.Body({ mass: 1, material: ballMaterial })
-      ballBody.addShape(ballShape)
-      ballBody.linearDamping = 0
-      world.addBody(ballBody)
-      balls.push(ballBody)
-      ballBody.position.set(x,y,(Math.random()*-30)-30)
-      ballBody.angularVelocity.y = 3
-      //console.log(ballBody)
-      ballBody.addEventListener('collide',function(e){
-        // console.log(e)
-        // console.log(score)
-        // console.log(e.body.position.y)
-        if(playing){
 
 
 
-          if(score > 0 && score <= 2){
-            sampler.triggerAttackRelease(drums[Math.floor(Math.random()*5)], 1)
-            synthA.triggerAttackRelease(notes[Math.floor(Math.random()*9)],1)
-          }
+  ballShape = new CANNON.Sphere(1)
+  ballBody = new CANNON.Body({ mass: 1, material: ballMaterial })
+  ballBody.addShape(ballShape)
+  ballBody.linearDamping = 0
+  world.addBody(ballBody)
+  balls.push(ballBody)
+  ballBody.position.set(x,y,(Math.random()*-30)-30)
+  ballBody.angularVelocity.y = 3
+  ballBody.addEventListener('collide',function(e){
 
-          if(score > 2 && score <= 4){
-            sampler.triggerAttackRelease(drums[Math.floor(Math.random()*5)], 1)
-            synthA.triggerAttackRelease(notesLow[Math.floor(Math.random()*9)],1)
-          }
 
-          if(score > 4 ){
-            sampler.triggerAttackRelease(drums[Math.floor(Math.random()*5)], 1)
-            synthB.triggerAttackRelease(notes[Math.floor(Math.random()*9)],1)
-          }
+    if(playing){
 
+      sampler.triggerAttackRelease(drums[Math.floor(Math.random()*5)], 1)
+      eval(synthArr[Math.floor(Math.random()*4)])
 
 
     }
@@ -345,7 +329,6 @@ const cannonDebugRenderer = new THREE.CannonDebugRenderer( scene, world )
 function animate() {
 
   update()
-  score+=0.001
   /* render scene and camera */
   renderer.render(scene,camera)
   requestAnimationFrame(animate)
