@@ -28,6 +28,7 @@
   position: fixed;
   z-index: 2;
   margin-left: 40%;
+  opacity: 0.8
 }
 .column{
 
@@ -37,7 +38,7 @@ canvas{
   position: relative;
 }
 
-.instructions{
+#instructions{
   color: white;
   position: fixed;
   z-index: 5;

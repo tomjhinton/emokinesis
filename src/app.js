@@ -6,13 +6,15 @@ import '@babel/polyfill'
 const THREE = require('three')
 import Tone from 'tone'
 
-import * as bodyPix from '@tensorflow-models/body-pix';
+import * as bodyPix from '@tensorflow-models/body-pix'
 import * as faceapi from 'face-api.js'
 const CANNON = require('cannon')
 import './debug.js'
 const webcamElement = document.getElementById('webcam')
 const canvas = document.getElementById('canvas')
+const instructions = document.getElementById('instructions')
 let playing = false
+let ready = false
 function setupWebcam() {
   return new Promise((resolve, reject) => {
     const navigatorAny = navigator
@@ -35,7 +37,7 @@ function setupWebcam() {
 
 
 async function loadAndPredict() {
-  const net = await bodyPix.load(/** optional arguments, see below **/);
+  const net = await bodyPix.load(/** optional arguments, see below **/)
 
     async function draw(){
       window.requestAnimFrame = (function(){
@@ -63,7 +65,7 @@ async function loadAndPredict() {
   function detectBody(){
     net.segmentPerson(camera, outputStride, segmentationThreshold)
     .catch(error => {
-        alert("Fail to segment person");
+        //alert("Fail to segment person");
     })
     .then(personSegmentation => {
         drawBody(personSegmentation);
@@ -100,7 +102,12 @@ Promise.all([
   faceapi.nets.faceLandmark68Net.loadFromUri('./models'),
   faceapi.nets.faceRecognitionNet.loadFromUri('./models'),
   faceapi.nets.faceExpressionNet.loadFromUri('./models')
-]).then(setupWebcam())
+]).then( x=> {
+  setupWebcam()
+  ready = true
+  instructions.innerText=
+    'The balls are controlled by surpised or happy faces.'
+})
 
 let sad, surprised, happy
 
@@ -109,13 +116,14 @@ webcamElement.addEventListener('play', () => {
   const displaySize = { width: webcamElement.width, height: webcamElement.height }
   faceapi.matchDimensions(canvas, displaySize)
   setInterval(async () => {
-    const detections = await faceapi.detectAllFaces(webcamElement, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
-    const resizedDetections = faceapi.resizeResults(detections, displaySize)
-if(resizedDetections[0] !== undefined){
-    happy = resizedDetections[0].expressions.happy
-    surprised = resizedDetections[0].expressions.surprised
-  }
-
+    if(ready){
+      const detections = await faceapi.detectAllFaces(webcamElement, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
+      const resizedDetections = faceapi.resizeResults(detections, displaySize)
+      if(resizedDetections[0] !== undefined){
+        happy = resizedDetections[0].expressions.happy
+        surprised = resizedDetections[0].expressions.surprised
+      }
+}
     //console.log(faceapi)
   }, 100)
 })
@@ -136,7 +144,7 @@ var sampler = new Tone.Sampler({
   'D3': 'assets/Kick.wav',
   'F3': 'assets/Snare.wav',
   'E3': 'assets/wood.wav',
-  'B3': 'assets/daiko.wav',
+  'B3': 'assets/daiko.wav'
 
 }, function(){
   //sampler will repitch the closest sample
@@ -217,13 +225,14 @@ let world,  playerMaterial, playerContactMaterial, platThreeArr = [], platCanArr
 
 scene.add(line, line2)
 
-let groundBody, groundShape ,wallMaterial, platform
-world = new CANNON.World()
-  world.gravity.set(0,-20,0)
-  world.broadphase = new CANNON.NaiveBroadphase()
-  world.solver.iterations = 10
+let groundBody, groundShape ,wallMaterial
 
-  wallMaterial = new CANNON.Material('wallMaterial')
+world = new CANNON.World()
+world.gravity.set(0,-20,0)
+world.broadphase = new CANNON.NaiveBroadphase()
+world.solver.iterations = 10
+
+wallMaterial = new CANNON.Material('wallMaterial')
 
  ballMaterial = new CANNON.Material('ballMaterial')
   wallContactMaterial = new CANNON.ContactMaterial(ballMaterial, wallMaterial)
@@ -245,16 +254,16 @@ world = new CANNON.World()
     world.addBody(groundBody)
 
     function ballCreate(x,y){
-      const materialBall = new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 0.8,
-        transparent: true } )
+  const materialBall = new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 0.8,
+    transparent: true } )
 
-      const ballGeometry = new THREE.SphereGeometry(1, 32, 32)
-      const ballMesh = new THREE.Mesh( ballGeometry, materialBall )
-      ballMesh.name = 'ball'
-      scene.add(ballMesh)
-      ballMeshes.push(ballMesh)
+  const ballGeometry = new THREE.SphereGeometry(1, 32, 32)
+  const ballMesh = new THREE.Mesh( ballGeometry, materialBall )
+  ballMesh.name = 'ball'
+  scene.add(ballMesh)
+  ballMeshes.push(ballMesh)
 
-      mass = 2, radius = 1
+  mass = 2, radius = 1
 
 
       ballShape = new CANNON.Sphere(radius)
@@ -263,7 +272,7 @@ world = new CANNON.World()
       ballBody.linearDamping = 0
       world.addBody(ballBody)
       balls.push(ballBody)
-      ballBody.position.set(x,y,-30)
+      ballBody.position.set(x,y,(Math.random()*-30)-30)
       ballBody.angularVelocity.y = 3
       //console.log(ballBody)
       ballBody.addEventListener('collide',function(e){
@@ -294,9 +303,9 @@ world = new CANNON.World()
     }
   })
 }
-for(let k=0;k<10;k++){
+for(let k=0;k<15;k++){
 
-  ballCreate(Math.floor(Math.random()*15), Math.floor(Math.random()*15))
+  ballCreate(Math.floor(Math.random()*25), Math.floor(Math.random()*25))
 }
 
 var update = function() {
