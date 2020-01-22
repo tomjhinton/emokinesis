@@ -45,7 +45,8 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: 'src/index.html',
       filename: 'index.html',
-      inject: 'body'
+      inject: 'body',
+      favicon: 'src/assets/favicon.png'
 
     }),
     new webpack.ProvidePlugin({ 'window.decomp': 'poly-decomp' }),
